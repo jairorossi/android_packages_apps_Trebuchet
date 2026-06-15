@@ -15,10 +15,10 @@
 -->
 <resources>
     <string name="settings_lock_layout_title">قوفڵکردنی ڕێکخستنی پەڕە</string>
-    <string name="settings_lock_layout_summary_on">وێنۆچکە و کورتەبڕەکان ناتوانرێن زیاد بکرێن، لاببرێن یان بجوڵێنرێن لە پەڕەی ماڵەوەدا</string>
-    <string name="settings_lock_layout_summary_off">وێنۆچکە و کورتەبڕەکان دەتوانرێن زیاد بکرێن، لاببرێن یان بجوڵێنرێن لە پەڕەی ماڵەوەدا</string>
-    <string name="settings_edit_widgets_error">ناتوانرێت کورتەبڕ بۆ پەڕەی سەرەکی زیاد بکرێت</string>
-    <string name="title_show_google_app">نیشاندانی بەرنامەی گوگڵ</string>
+    <string name="settings_lock_layout_summary_on">وێنۆچکە و قەدبڕەکان ناتوانرێن زیاد بکرێن، لاببرێن یان بجوڵێنرێن لە پەڕەی ماڵەوەدا</string>
+    <string name="settings_lock_layout_summary_off">وێنۆچکە و قەدبڕەکان دەتوانرێن زیاد بکرێن، لاببرێن یان بجوڵێنرێن لە پەڕەی ماڵەوەدا</string>
+    <string name="settings_edit_widgets_error">ناتوانرێت قەدبڕ بۆ پەڕەی سەرەکی زیاد بکرێت</string>
+    <string name="title_show_google_app">نیشاندانی بەرنامەی گووگڵ</string>
     <string name="msg_minus_one_on_left">کاتێک لە پەڕەی ماڵەوە بەرەو لای ڕاست دەڕۆیت</string>
     <string name="msg_minus_one_on_right">کاتێک لە پەڕەی ماڵەوە بەرەو لای چەپ دەڕۆیت</string>
     <string name="pref_themed_icons_title">بەکارهێنانی وێنۆچکە ڕەنگاوڕەنگەکان لە لیستی بەرنامەکاندا</string>
@@ -33,7 +33,7 @@
     <string name="trust_apps_loading">بارکردن…</string>
     <string name="trust_apps_no_lock_error">تکایە قوفڵێکی ڕوونمای پارێزراو دابنێ بۆ سنووردارکردنی دەستگەیشتن بە بەرنامەکان</string>
     <string name="trust_apps_help">یارمەتی</string>
-    <string name="trust_apps_info_hidden">بەرنامە شاردراوەکان و ویجێتەکانیان لە ناو ڕووکاردا نیشان نادرێن</string>
+    <string name="trust_apps_info_hidden">بەرنامە شاردراوەکان و ویجێتەکانیان لە لیستی بەرنامەکان دەشاردرێنەوە</string>
     <string name="trust_apps_info_protected">بەرنامە پارێزراوەکان پێویستیان بە پشکنینی ناسنامە هەیە بۆ ئەوەی بکرێنەوە</string>
     <string name="pref_suggestions_title">پێشنیارەکان</string>
     <string name="pref_suggestions_summary">بۆ پێشنیارکردنی بەرنامەکان لە لیستی بەرنامەکان و پەڕەی ماڵەوەدا</string>
