@@ -18,6 +18,7 @@ package com.android.quickstep;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_UNDEFINED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.content.Intent.ACTION_USER_UNLOCKED;
+import static android.view.Display.DEFAULT_DISPLAY;
 
 import static com.android.launcher3.util.DisplayController.CHANGE_ALL;
 import static com.android.launcher3.util.DisplayController.CHANGE_ROTATION;
@@ -40,6 +41,7 @@ import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_O
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_OVERVIEW_DISABLED;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_QUICK_SETTINGS_EXPANDED;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_SCREEN_PINNING;
+import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_STATUS_BAR_KEYGUARD_SHOWING;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_STATUS_BAR_KEYGUARD_SHOWING_OCCLUDED;
 
 import android.app.ActivityManager;
@@ -82,7 +84,6 @@ import com.android.systemui.shared.system.TaskStackChangeListeners;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Manages the state of the system during a swipe up gesture.
@@ -144,7 +145,7 @@ public class RecentsAnimationDeviceState implements
         mContext = context;
         mDisplayController = DisplayController.INSTANCE.get(context);
         mSysUiNavMode = SysUINavigationMode.INSTANCE.get(context);
-        mDisplayId = mDisplayController.getInfo().id;
+        mDisplayId = DEFAULT_DISPLAY;
         mIsOneHandedModeSupported = SystemProperties.getBoolean(SUPPORT_ONE_HANDED_MODE, false);
         runOnDestroy(() -> mDisplayController.removeChangeListener(this));
         mRotationTouchHelper = RotationTouchHelper.INSTANCE.get(context);
@@ -396,14 +397,6 @@ public class RecentsAnimationDeviceState implements
     }
 
     /**
-     * @return the packages of gesture-blocked activities.
-     */
-    public List<String> getGestureBlockedActivityPackages() {
-        return mGestureBlockedActivities.stream().map(ComponentName::getPackageName)
-                .collect(Collectors.toList());
-    }
-
-    /**
      * Updates the system ui state flags from SystemUI.
      */
     public void setSystemUiFlags(int stateFlags) {
@@ -427,6 +420,7 @@ public class RecentsAnimationDeviceState implements
                 || mRotationTouchHelper.isTaskListFrozen();
         return canStartWithNavHidden
                 && (mSystemUiStateFlags & SYSUI_STATE_NOTIFICATION_PANEL_EXPANDED) == 0
+                && (mSystemUiStateFlags & SYSUI_STATE_STATUS_BAR_KEYGUARD_SHOWING) == 0
                 && (mSystemUiStateFlags & SYSUI_STATE_QUICK_SETTINGS_EXPANDED) == 0
                 && (mSystemUiStateFlags & SYSUI_STATE_MAGNIFICATION_OVERLAP) == 0
                 && ((mSystemUiStateFlags & SYSUI_STATE_HOME_DISABLED) == 0
@@ -562,15 +556,13 @@ public class RecentsAnimationDeviceState implements
 
     /**
      * @param ev An ACTION_DOWN motion event
-     * @param task Info for the currently running task
      * @return whether the given motion event can trigger the assistant over the current task.
      */
-    public boolean canTriggerAssistantAction(MotionEvent ev, ActivityManager.RunningTaskInfo task) {
+    public boolean canTriggerAssistantAction(MotionEvent ev) {
         return mAssistantAvailable
                 && !QuickStepContract.isAssistantGestureDisabled(mSystemUiStateFlags)
                 && mRotationTouchHelper.touchInAssistantRegion(ev)
-                && !isLockToAppActive()
-                && !isGestureBlockedActivity(task);
+                && !isLockToAppActive();
     }
 
     /**

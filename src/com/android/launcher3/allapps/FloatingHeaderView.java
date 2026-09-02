@@ -108,6 +108,7 @@ public class FloatingHeaderView extends LinearLayout implements
     // enabled or disabled, and represent the current set of all rows.
     private FloatingHeaderRow[] mAllRows = FloatingHeaderRow.NO_ROWS;
 
+
     public FloatingHeaderView(@NonNull Context context) {
         this(context, null);
     }
@@ -260,7 +261,7 @@ public class FloatingHeaderView extends LinearLayout implements
 
     public int getMaxTranslation() {
         if (mMaxTranslation == 0 && mTabsHidden) {
-            return 0;
+            return getResources().getDimensionPixelSize(R.dimen.all_apps_search_bar_bottom_padding);
         } else if (mMaxTranslation > 0 && mTabsHidden) {
             return mMaxTranslation + getPaddingTop();
         } else {

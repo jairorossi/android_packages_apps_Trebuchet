@@ -24,10 +24,8 @@ import static android.view.MotionEvent.ACTION_UP;
 import static com.android.launcher3.LauncherState.NORMAL;
 import static com.android.launcher3.logging.StatsLogManager.LauncherEvent.LAUNCHER_WORKSPACE_LONGPRESS;
 
-import android.content.Context;
 import android.graphics.PointF;
 import android.graphics.Rect;
-import android.os.PowerManager;
 import android.view.GestureDetector;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
@@ -40,11 +38,9 @@ import com.android.launcher3.CellLayout;
 import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.Launcher;
 import com.android.launcher3.Workspace;
-import com.android.launcher3.Utilities;
 import com.android.launcher3.dragndrop.DragLayer;
 import com.android.launcher3.testing.TestLogging;
 import com.android.launcher3.testing.TestProtocol;
-import com.android.launcher3.views.OptionsPopupView;
 
 /**
  * Helper class to handle touch on empty space in workspace and show options popup on long press
@@ -63,8 +59,6 @@ public class WorkspaceTouchListener extends GestureDetector.SimpleOnGestureListe
     private static final int STATE_PENDING_PARENT_INFORM = 2;
     private static final int STATE_COMPLETED = 3;
 
-    private static final String SLEEP_GESTURE = "pref_sleep_gesture";
-
     private final Rect mTempRect = new Rect();
     private final Launcher mLauncher;
     private final Workspace mWorkspace;
@@ -73,21 +67,15 @@ public class WorkspaceTouchListener extends GestureDetector.SimpleOnGestureListe
 
     private int mLongPressState = STATE_CANCELLED;
 
-    private final PowerManager mPm;
-
     private final GestureDetector mGestureDetector;
-
-    private final Context mContext;
 
     public WorkspaceTouchListener(Launcher launcher, Workspace workspace) {
         mLauncher = launcher;
         mWorkspace = workspace;
-        mContext = workspace.getContext();
         // Use twice the touch slop as we are looking for long press which is more
         // likely to cause movement.
         mTouchSlop = 2 * ViewConfiguration.get(launcher).getScaledTouchSlop();
-        mPm = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
-        mGestureDetector = new GestureDetector(mContext, this);
+        mGestureDetector = new GestureDetector(workspace.getContext(), this);
     }
 
     @Override
@@ -186,17 +174,10 @@ public class WorkspaceTouchListener extends GestureDetector.SimpleOnGestureListe
                 mWorkspace.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS,
                         HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING);
                 mLauncher.getStatsLogManager().logger().log(LAUNCHER_WORKSPACE_LONGPRESS);
-                OptionsPopupView.showDefaultOptions(mLauncher, mTouchDownPoint.x, mTouchDownPoint.y);
+                mLauncher.showDefaultOptions(mTouchDownPoint.x, mTouchDownPoint.y);
             } else {
                 cancelLongPress();
             }
         }
-    }
-
-    @Override
-    public boolean onDoubleTap(MotionEvent event) {
-        if (Utilities.getPrefs(mContext).getBoolean(SLEEP_GESTURE, true))
-            mPm.goToSleep(event.getEventTime());
-        return true;
     }
 }

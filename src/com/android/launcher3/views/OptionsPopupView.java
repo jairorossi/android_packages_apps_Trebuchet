@@ -22,7 +22,6 @@ import static com.android.launcher3.logging.StatsLogManager.LauncherEvent.IGNORE
 import static com.android.launcher3.logging.StatsLogManager.LauncherEvent.LAUNCHER_SETTINGS_BUTTON_TAP_OR_LONGPRESS;
 import static com.android.launcher3.logging.StatsLogManager.LauncherEvent.LAUNCHER_WIDGETSTRAY_BUTTON_TAP_OR_LONGPRESS;
 
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Rect;
@@ -38,9 +37,9 @@ import android.view.View.OnLongClickListener;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 import androidx.core.content.ContextCompat;
 
+import com.android.launcher3.AbstractFloatingView;
 import com.android.launcher3.Launcher;
 import com.android.launcher3.LauncherSettings;
 import com.android.launcher3.R;
@@ -60,7 +59,7 @@ import java.util.List;
 /**
  * Popup shown on long pressing an empty space in launcher
  */
-public class OptionsPopupView extends ArrowPopup
+public class OptionsPopupView extends ArrowPopup<Launcher>
         implements OnClickListener, OnLongClickListener {
 
     private final ArrayMap<View, OptionItem> mItemMap = new ArrayMap<>();
@@ -73,6 +72,10 @@ public class OptionsPopupView extends ArrowPopup
 
     public OptionsPopupView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
+    }
+
+    public void setTargetRect(RectF targetRect) {
+        mTargetRect = targetRect;
     }
 
     @Override
@@ -91,7 +94,7 @@ public class OptionsPopupView extends ArrowPopup
             return false;
         }
         if (item.eventId.getId() > 0) {
-            mLauncher.getStatsLogManager().logger().log(item.eventId);
+            mActivityContext.getStatsLogManager().logger().log(item.eventId);
         }
         if (item.clickListener.onLongClick(view)) {
             close(true);
@@ -172,28 +175,13 @@ public class OptionsPopupView extends ArrowPopup
         return children;
     }
 
-    @VisibleForTesting
-    public static ArrowPopup getOptionsPopup(Launcher launcher) {
-        return launcher.findViewById(R.id.popup_container);
-    }
-
-    public static void showDefaultOptions(Launcher launcher, float x, float y) {
-        float halfSize = launcher.getResources().getDimension(R.dimen.options_menu_thumb_size) / 2;
-        if (x < 0 || y < 0) {
-            x = launcher.getDragLayer().getWidth() / 2;
-            y = launcher.getDragLayer().getHeight() / 2;
-        }
-        RectF target = new RectF(x - halfSize, y - halfSize, x + halfSize, y + halfSize);
-        show(launcher, target, getOptions(launcher), false);
-    }
-
     /**
      * Returns the list of supported actions
      */
     public static ArrayList<OptionItem> getOptions(Launcher launcher) {
         ArrayList<OptionItem> options = new ArrayList<>();
         options.add(new OptionItem(launcher,
-                R.string.settings_title,
+                R.string.settings_button_text,
                 R.drawable.ic_setting,
                 LAUNCHER_SETTINGS_BUTTON_TAP_OR_LONGPRESS,
                 OptionsPopupView::startSettings));
@@ -227,6 +215,11 @@ public class OptionsPopupView extends ArrowPopup
             Toast.makeText(launcher, R.string.safemode_widget_error, Toast.LENGTH_SHORT).show();
             return null;
         } else {
+            AbstractFloatingView floatingView = AbstractFloatingView.getTopOpenViewWithType(
+                    launcher, TYPE_WIDGETS_FULL_SHEET);
+            if (floatingView != null) {
+                return (WidgetsFullSheet) floatingView;
+            }
             return WidgetsFullSheet.show(launcher, true /* animated */);
         }
     }
@@ -259,9 +252,6 @@ public class OptionsPopupView extends ArrowPopup
             intent.putExtra(EXTRA_WALLPAPER_FLAVOR, "wallpaper_only");
         } else {
             intent.putExtra(EXTRA_WALLPAPER_FLAVOR, "focus_wallpaper");
-            intent.setComponent(new ComponentName(
-                    launcher.getString(R.string.wallpaper_picker_package),
-                    "com.android.customization.picker.CustomizationPickerActivity"));
         }
         String pickerPackage = launcher.getString(R.string.wallpaper_picker_package);
         if (!TextUtils.isEmpty(pickerPackage)) {
@@ -289,7 +279,7 @@ public class OptionsPopupView extends ArrowPopup
         public final OnLongClickListener clickListener;
 
         public OptionItem(Context context, int labelRes, int iconRes, EventEnum eventId,
-                          OnLongClickListener clickListener) {
+                OnLongClickListener clickListener) {
             this.labelRes = labelRes;
             this.label = context.getText(labelRes);
             this.icon = ContextCompat.getDrawable(context, iconRes);
@@ -298,7 +288,7 @@ public class OptionsPopupView extends ArrowPopup
         }
 
         public OptionItem(CharSequence label, Drawable icon, EventEnum eventId,
-                          OnLongClickListener clickListener) {
+                OnLongClickListener clickListener) {
             this.labelRes = 0;
             this.label = label;
             this.icon = icon;

@@ -158,8 +158,9 @@ public class FloatingSurfaceView extends AbstractFloatingView implements
         if (mContract == null) {
             return;
         }
-        View icon = mLauncher.getWorkspace().getFirstMatchForAppClose(-1,
-                mContract.componentName.getPackageName(), mContract.user);
+        View icon = mLauncher.getFirstMatchForAppClose(-1,
+                mContract.componentName.getPackageName(), mContract.user,
+                false /* supportsAllAppsState */);
 
         boolean iconChanged = mIcon != icon;
         if (iconChanged) {
@@ -182,7 +183,7 @@ public class FloatingSurfaceView extends AbstractFloatingView implements
                 lp.topMargin = Math.round(mIconPosition.top);
             }
         }
-        if (iconChanged && !mIconBounds.isEmpty()) {
+        if (mIcon != null && iconChanged && !mIconBounds.isEmpty()) {
             // Record the icon display
             setCurrentIconVisible(true);
             Canvas c = mPicture.beginRecording(mIconBounds.width(), mIconBounds.height());
