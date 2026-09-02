@@ -43,13 +43,13 @@
         attributes and intent filters the same
         -->
         <activity
-            android:name="com.android.launcher3.uioverrides.QuickstepLauncher"
+            android:name="com.android.launcher3.CustomLauncher"
             android:launchMode="singleTask"
             android:clearTaskOnLaunch="true"
             android:stateNotNeeded="true"
             android:windowSoftInputMode="adjustPan"
             android:screenOrientation="unspecified"
-            android:configChanges="keyboard|keyboardHidden|mcc|mnc|navigation|orientation|screenSize|screenLayout|smallestScreenSize"
+            android:configChanges="keyboard|keyboardHidden|mcc|mnc|navigation|orientation|screenSize|screenLayout|smallestScreenSize|density"
             android:resizeableActivity="true"
             android:resumeWhilePausing="true"
             android:taskAffinity=""
@@ -64,6 +64,9 @@
             </intent-filter>
             <meta-data
                 android:name="com.android.launcher3.grid.control"
+                android:value="${packageName}.grid_control" />
+            <meta-data
+                android:name="com.android.launcher3.themedicon.option"
                 android:value="${packageName}.grid_control" />
         </activity>
 

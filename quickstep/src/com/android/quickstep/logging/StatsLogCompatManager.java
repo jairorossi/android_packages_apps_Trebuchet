@@ -31,11 +31,9 @@ import static com.android.systemui.shared.system.SysUiStatsLog.LAUNCHER_UICHANGE
 
 import android.content.Context;
 import android.util.Log;
-import android.util.StatsEvent;
 import android.view.View;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
 import androidx.slice.SliceItem;
 
@@ -58,7 +56,6 @@ import com.android.launcher3.model.data.FolderInfo;
 import com.android.launcher3.model.data.ItemInfo;
 import com.android.launcher3.util.Executors;
 import com.android.launcher3.util.LogConfig;
-import com.android.launcher3.views.ActivityContext;
 import com.android.systemui.shared.system.InteractionJankMonitorWrapper;
 import com.android.systemui.shared.system.SysUiStatsLog;
 
@@ -100,7 +97,7 @@ public class StatsLogCompatManager extends StatsLogManager {
 
     @Override
     protected StatsLogger createLogger() {
-        return new StatsCompatLogger(mContext, mActivityContext);
+        return new StatsCompatLogger(mContext);
     }
 
     /**
@@ -138,44 +135,13 @@ public class StatsLogCompatManager extends StatsLogManager {
     }
 
     /**
-     * Builds {@link StatsEvent} from {@link LauncherAtom.ItemInfo}. Used for pulled atom callback
-     * implementation.
-     */
-    public static StatsEvent buildStatsEvent(LauncherAtom.ItemInfo info,
-            @Nullable InstanceId instanceId) {
-        return SysUiStatsLog.buildStatsEvent(
-                SysUiStatsLog.LAUNCHER_LAYOUT_SNAPSHOT, // atom ID,
-                LAUNCHER_WORKSPACE_SNAPSHOT.getId(), // event_id = 1;
-                info.getAttribute().getNumber() * ATTRIBUTE_MULTIPLIER
-                        + info.getItemCase().getNumber(), // item_id = 2;
-                instanceId == null ? 0 : instanceId.getId(), //instance_id = 3;
-                0, //uid = 4 [(is_uid) = true];
-                getPackageName(info), // package_name = 5;
-                getComponentName(info), // component_name = 6;
-                getGridX(info, false), //grid_x = 7 [default = -1];
-                getGridY(info, false), //grid_y = 8 [default = -1];
-                getPageId(info), // page_id = 9 [default = -2];
-                getGridX(info, true), //grid_x_parent = 10 [default = -1];
-                getGridY(info, true), //grid_y_parent = 11 [default = -1];
-                getParentPageId(info), //page_id_parent = 12 [default = -2];
-                getHierarchy(info), // container_id = 13;
-                info.getIsWork(), // is_work_profile = 14;
-                info.getAttribute().getNumber(), // attribute_id = 15;
-                getCardinality(info), // cardinality = 16;
-                info.getWidget().getSpanX(), // span_x = 17 [default = 1];
-                info.getWidget().getSpanY() // span_y = 18 [default = 1];
-        );
-    }
-
-    /**
      * Helps to construct and write statsd compatible log message.
      */
     private static class StatsCompatLogger implements StatsLogger {
 
         private static final ItemInfo DEFAULT_ITEM_INFO = new ItemInfo();
 
-        private final Context mContext;
-        private final Optional<ActivityContext> mActivityContext;
+        private Context mContext;
         private ItemInfo mItemInfo = DEFAULT_ITEM_INFO;
         private InstanceId mInstanceId = DEFAULT_INSTANCE_ID;
         private OptionalInt mRank = OptionalInt.empty();
@@ -188,9 +154,8 @@ public class StatsLogCompatManager extends StatsLogManager {
         private SliceItem mSliceItem;
         private LauncherAtom.Slice mSlice;
 
-        StatsCompatLogger(Context context, ActivityContext activityContext) {
+        StatsCompatLogger(Context context) {
             mContext = context;
-            mActivityContext = Optional.ofNullable(activityContext);
         }
 
         @Override
@@ -342,9 +307,6 @@ public class StatsLogCompatManager extends StatsLogManager {
             mRank.ifPresent(itemInfoBuilder::setRank);
             mContainerInfo.ifPresent(itemInfoBuilder::setContainerInfo);
 
-            mActivityContext.ifPresent(activityContext ->
-                    activityContext.applyOverwritesToLogItem(itemInfoBuilder));
-
             if (mFromState.isPresent() || mToState.isPresent() || mEditText.isPresent()) {
                 FolderIcon.Builder folderIconBuilder = itemInfoBuilder
                         .getFolderIcon()
@@ -413,8 +375,6 @@ public class StatsLogCompatManager extends StatsLogManager {
         switch (info.getContainerInfo().getContainerCase()) {
             case PREDICTED_HOTSEAT_CONTAINER:
                 return info.getContainerInfo().getPredictedHotseatContainer().getCardinality();
-            case TASK_BAR_CONTAINER:
-                return info.getContainerInfo().getTaskBarContainer().getCardinality();
             case SEARCH_RESULT_CONTAINER:
                 return info.getContainerInfo().getSearchResultContainer().getQueryLength();
             case EXTENDED_CONTAINERS:
@@ -501,8 +461,6 @@ public class StatsLogCompatManager extends StatsLogManager {
                 return info.getContainerInfo().getHotseat().getIndex();
             case PREDICTED_HOTSEAT_CONTAINER:
                 return info.getContainerInfo().getPredictedHotseatContainer().getIndex();
-            case TASK_BAR_CONTAINER:
-                return info.getContainerInfo().getTaskBarContainer().getIndex();
             default:
                 return info.getContainerInfo().getWorkspace().getPageIndex();
         }

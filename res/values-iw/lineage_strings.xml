@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Copyright (C) 2018-2019 The LineageOS Project
+<!-- Copyright (C) 2018 The LineageOS Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
     <string name="settings_lock_layout_summary_on">לא ניתן להוסיף, להסיר ולהזיז סמלים ויישומונים על מסך הבית</string>
     <string name="settings_lock_layout_summary_off">ניתן להוסיף, להסיר ולהזיז סמלים ויישומונים על מסך הבית</string>
     <string name="settings_edit_widgets_error">אין אפשרות להוסיף יישומונים למסך הבית</string>
-    <string name="title_show_google_app">הצג את חיפוש Google</string>
     <string name="desktop_show_labels">הצג תוויות סמלים במסך הבית</string>
     <string name="drawer_show_labels">הצג תוויות סמלים במגירת היישומים</string>
 </resources>

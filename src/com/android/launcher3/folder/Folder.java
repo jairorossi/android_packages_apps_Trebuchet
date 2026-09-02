@@ -75,10 +75,10 @@ import com.android.launcher3.PagedView;
 import com.android.launcher3.R;
 import com.android.launcher3.ShortcutAndWidgetContainer;
 import com.android.launcher3.Utilities;
+import com.android.launcher3.Workspace.ItemOperator;
 import com.android.launcher3.accessibility.AccessibleDragListenerAdapter;
 import com.android.launcher3.accessibility.FolderAccessibilityHelper;
 import com.android.launcher3.anim.KeyboardInsetAnimationCallback;
-import com.android.launcher3.compat.AccessibilityManagerCompat;
 import com.android.launcher3.config.FeatureFlags;
 import com.android.launcher3.dragndrop.DragController;
 import com.android.launcher3.dragndrop.DragController.DragListener;
@@ -94,7 +94,6 @@ import com.android.launcher3.model.data.ItemInfo;
 import com.android.launcher3.model.data.WorkspaceItemInfo;
 import com.android.launcher3.pageindicators.PageIndicatorDots;
 import com.android.launcher3.util.Executors;
-import com.android.launcher3.util.LauncherBindableItemsContainer.ItemOperator;
 import com.android.launcher3.util.Thunk;
 import com.android.launcher3.views.ActivityContext;
 import com.android.launcher3.views.BaseDragLayer;
@@ -277,19 +276,15 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
         mPageIndicator = findViewById(R.id.folder_page_indicator);
         mFolderName = findViewById(R.id.folder_name);
         mFolderName.setTextSize(TypedValue.COMPLEX_UNIT_PX, dp.folderLabelTextSizePx);
-        if (mActivityContext.supportsIme()) {
-            mFolderName.setOnBackKeyListener(this);
-            mFolderName.setOnFocusChangeListener(this);
-            mFolderName.setOnEditorActionListener(this);
-            mFolderName.setSelectAllOnFocus(true);
-            mFolderName.setInputType(mFolderName.getInputType()
-                    & ~InputType.TYPE_TEXT_FLAG_AUTO_CORRECT
-                    | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-                    | InputType.TYPE_TEXT_FLAG_CAP_WORDS);
-            mFolderName.forceDisableSuggestions(true);
-        } else {
-            mFolderName.setEnabled(false);
-        }
+        mFolderName.setOnBackKeyListener(this);
+        mFolderName.setOnFocusChangeListener(this);
+        mFolderName.setOnEditorActionListener(this);
+        mFolderName.setSelectAllOnFocus(true);
+        mFolderName.setInputType(mFolderName.getInputType()
+                & ~InputType.TYPE_TEXT_FLAG_AUTO_CORRECT
+                | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                | InputType.TYPE_TEXT_FLAG_CAP_WORDS);
+        mFolderName.forceDisableSuggestions(true);
 
         mFooter = findViewById(R.id.folder_footer);
         mFooterHeight = getResources().getDimensionPixelSize(R.dimen.folder_label_height);
@@ -688,7 +683,6 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
             public void onAnimationEnd(Animator animation) {
                 mState = STATE_OPEN;
                 announceAccessibilityChanges();
-                AccessibilityManagerCompat.sendFolderOpenedEventToTest(getContext());
 
                 mContent.setFocusOnFirstChild();
             }
@@ -1202,7 +1196,8 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
     }
 
     void replaceFolderWithFinalItem() {
-        mDestroyed = mLauncherDelegate.replaceFolderWithFinalItem(this);
+        mLauncherDelegate.replaceFolderWithFinalItem(this);
+        mDestroyed = true;
     }
 
     public boolean isDestroyed() {
@@ -1267,8 +1262,7 @@ public class Folder extends AbstractFloatingView implements ClipPathView, DragSo
 
         PendingAddShortcutInfo pasi = d.dragInfo instanceof PendingAddShortcutInfo
                 ? (PendingAddShortcutInfo) d.dragInfo : null;
-        WorkspaceItemInfo pasiSi =
-                pasi != null ? pasi.activityInfo.createWorkspaceItemInfo() : null;
+        WorkspaceItemInfo pasiSi = pasi != null ? pasi.activityInfo.createWorkspaceItemInfo() : null;
         if (pasi != null && pasiSi == null) {
             // There is no WorkspaceItemInfo, so we have to go through a configuration activity.
             pasi.container = mInfo.id;

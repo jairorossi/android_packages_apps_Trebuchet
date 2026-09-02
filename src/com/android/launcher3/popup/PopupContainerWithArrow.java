@@ -46,6 +46,7 @@ import com.android.launcher3.DragSource;
 import com.android.launcher3.DropTarget;
 import com.android.launcher3.DropTarget.DragObject;
 import com.android.launcher3.Launcher;
+import com.android.launcher3.LauncherState;
 import com.android.launcher3.R;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.accessibility.LauncherAccessibilityDelegate;
@@ -64,10 +65,10 @@ import com.android.launcher3.notification.NotificationKeyData;
 import com.android.launcher3.popup.PopupDataProvider.PopupDataChangeListener;
 import com.android.launcher3.shortcuts.DeepShortcutView;
 import com.android.launcher3.shortcuts.ShortcutDragPreviewProvider;
+import com.android.launcher3.statemanager.StatefulActivity;
 import com.android.launcher3.touch.ItemLongClickListener;
 import com.android.launcher3.util.PackageUserKey;
 import com.android.launcher3.util.ShortcutUtil;
-import com.android.launcher3.views.ActivityContext;
 import com.android.launcher3.views.BaseDragLayer;
 
 import java.util.ArrayList;
@@ -83,7 +84,7 @@ import java.util.stream.Collectors;
  *
  * @param <T> The activity on with the popup shows
  */
-public class PopupContainerWithArrow<T extends Context & ActivityContext>
+public class PopupContainerWithArrow<T extends StatefulActivity<LauncherState>>
         extends ArrowPopup<T> implements DragSource, DragController.DragListener {
 
     private final List<DeepShortcutView> mShortcuts = new ArrayList<>();
@@ -151,7 +152,7 @@ public class PopupContainerWithArrow<T extends Context & ActivityContext>
 
     public OnClickListener getItemClickListener() {
         return (view) -> {
-            mActivityContext.getItemOnClickListener().onClick(view);
+            mLauncher.getItemOnClickListener().onClick(view);
             close(true);
         };
     }
@@ -192,10 +193,10 @@ public class PopupContainerWithArrow<T extends Context & ActivityContext>
     }
 
     /**
-     * Shows the notifications and deep shortcuts associated with a Launcher {@param icon}.
+     * Shows the notifications and deep shortcuts associated with {@param icon}.
      * @return the container if shown or null.
      */
-    public static PopupContainerWithArrow<Launcher> showForIcon(BubbleTextView icon) {
+    public static PopupContainerWithArrow showForIcon(BubbleTextView icon) {
         Launcher launcher = Launcher.getLauncher(icon.getContext());
         if (getOpen(launcher) != null) {
             // There is already an items container open, so don't open this one.
@@ -207,7 +208,7 @@ public class PopupContainerWithArrow<T extends Context & ActivityContext>
             return null;
         }
 
-        final PopupContainerWithArrow<Launcher> container =
+        final PopupContainerWithArrow container =
                 (PopupContainerWithArrow) launcher.getLayoutInflater().inflate(
                         R.layout.popup_container, launcher.getDragLayer(), false);
         container.configureForLauncher(launcher);
@@ -326,7 +327,7 @@ public class PopupContainerWithArrow<T extends Context & ActivityContext>
 
         // Load the shortcuts on a background thread and update the container as it animates.
         MODEL_EXECUTOR.getHandler().postAtFrontOfQueue(PopupPopulator.createUpdateRunnable(
-                mActivityContext, originalItemInfo, new Handler(Looper.getMainLooper()),
+                mLauncher, originalItemInfo, new Handler(Looper.getMainLooper()),
                 this, mShortcuts, notificationKeys));
     }
 
@@ -397,7 +398,7 @@ public class PopupContainerWithArrow<T extends Context & ActivityContext>
      * Current behavior:
      * - Start the drag if the touch passes a certain distance from the original touch down.
      */
-    public DragOptions.PreDragCondition createPreDragCondition(boolean updateIconUi) {
+    public DragOptions.PreDragCondition createPreDragCondition() {
         return new DragOptions.PreDragCondition() {
 
             @Override
@@ -407,9 +408,6 @@ public class PopupContainerWithArrow<T extends Context & ActivityContext>
 
             @Override
             public void onPreDragStart(DropTarget.DragObject dragObject) {
-                if (!updateIconUi) {
-                    return;
-                }
                 if (mIsAboveIcon) {
                     // Hide only the icon, keep the text visible.
                     mOriginalIcon.setIconVisible(false);
@@ -422,9 +420,6 @@ public class PopupContainerWithArrow<T extends Context & ActivityContext>
 
             @Override
             public void onPreDragEnd(DropTarget.DragObject dragObject, boolean dragStarted) {
-                if (!updateIconUi) {
-                    return;
-                }
                 mOriginalIcon.setIconVisible(true);
                 if (dragStarted) {
                     // Make sure we keep the original icon hidden while it is being dragged.
@@ -445,7 +440,7 @@ public class PopupContainerWithArrow<T extends Context & ActivityContext>
 
     private void updateNotificationHeader() {
         ItemInfoWithIcon itemInfo = (ItemInfoWithIcon) mOriginalIcon.getTag();
-        DotInfo dotInfo = mActivityContext.getDotInfoForItem(itemInfo);
+        DotInfo dotInfo = mLauncher.getDotInfoForItem(itemInfo);
         if (mNotificationContainer != null && dotInfo != null) {
             mNotificationContainer.updateHeader(dotInfo.getNotificationCount());
         }
@@ -486,22 +481,19 @@ public class PopupContainerWithArrow<T extends Context & ActivityContext>
 
     @Override
     protected void closeComplete() {
-        super.closeComplete();
-        if (mActivityContext.getDragController() != null) {
-            mActivityContext.getDragController().removeDragListener(this);
-        }
-        PopupContainerWithArrow openPopup = getOpen(mActivityContext);
+        PopupContainerWithArrow openPopup = getOpen(mLauncher);
         if (openPopup == null || openPopup.mOriginalIcon != mOriginalIcon) {
             mOriginalIcon.setTextVisibility(mOriginalIcon.shouldTextBeVisible());
             mOriginalIcon.setForceHideDot(false);
         }
+        super.closeComplete();
     }
 
     /**
      * Returns a PopupContainerWithArrow which is already open or null
      */
-    public static <T extends Context & ActivityContext> PopupContainerWithArrow getOpen(T context) {
-        return getOpenView(context, TYPE_ACTION_POPUP);
+    public static PopupContainerWithArrow getOpen(BaseDraggingActivity launcher) {
+        return getOpenView(launcher, TYPE_ACTION_POPUP);
     }
 
     /**
@@ -602,7 +594,6 @@ public class PopupContainerWithArrow<T extends Context & ActivityContext>
                 mNotificationContainer.setVisibility(GONE);
                 updateHiddenShortcuts();
                 assignMarginsAndBackgrounds(PopupContainerWithArrow.this);
-                updateArrowColor();
             } else {
                 mNotificationContainer.trimNotifications(
                         NotificationKeyData.extractKeysOnly(dotInfo.getNotificationKeys()));

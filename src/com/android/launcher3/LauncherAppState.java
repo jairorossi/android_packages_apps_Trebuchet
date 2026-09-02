@@ -37,7 +37,6 @@ import com.android.launcher3.graphics.IconShape;
 import com.android.launcher3.icons.IconCache;
 import com.android.launcher3.icons.IconProvider;
 import com.android.launcher3.icons.LauncherIcons;
-import com.android.launcher3.lineage.trust.HiddenAppsFilter;
 import com.android.launcher3.notification.NotificationListener;
 import com.android.launcher3.pm.InstallSessionHelper;
 import com.android.launcher3.pm.InstallSessionTracker;
@@ -49,9 +48,10 @@ import com.android.launcher3.util.SafeCloseable;
 import com.android.launcher3.util.SettingsCache;
 import com.android.launcher3.util.SimpleBroadcastReceiver;
 import com.android.launcher3.util.Themes;
+import com.android.launcher3.widget.DatabaseWidgetPreviewLoader;
 import com.android.launcher3.widget.custom.CustomWidgetManager;
 
-public class LauncherAppState implements SafeCloseable {
+public class LauncherAppState {
 
     public static final String ACTION_FORCE_ROLOAD = "force-reload-launcher";
     private static final String KEY_ICON_STATE = "pref_icon_shape_path";
@@ -64,8 +64,12 @@ public class LauncherAppState implements SafeCloseable {
     private final LauncherModel mModel;
     private final IconProvider mIconProvider;
     private final IconCache mIconCache;
+    private final DatabaseWidgetPreviewLoader mWidgetCache;
     private final InvariantDeviceProfile mInvariantDeviceProfile;
     private final RunnableList mOnTerminateCallback = new RunnableList();
+
+    private HomeKeyWatcher mHomeKeyListener = null;
+    private boolean mNeedsRestart;
 
     public static LauncherAppState getInstance(final Context context) {
         return INSTANCE.get(context);
@@ -84,11 +88,7 @@ public class LauncherAppState implements SafeCloseable {
         Log.v(Launcher.TAG, "LauncherAppState initiated");
         Preconditions.assertUIThread();
 
-        mInvariantDeviceProfile.addOnChangeListener(modelPropertiesChanged -> {
-            if (modelPropertiesChanged) {
-                refreshAndReloadLauncher();
-            }
-        });
+        mInvariantDeviceProfile.addOnChangeListener(idp -> refreshAndReloadLauncher());
 
         mContext.getSystemService(LauncherApps.class).registerCallback(mModel);
 
@@ -133,17 +133,42 @@ public class LauncherAppState implements SafeCloseable {
         onNotificationSettingsChanged(settingsCache.getValue(NOTIFICATION_BADGING_URI));
         mOnTerminateCallback.add(() ->
                 settingsCache.unregister(NOTIFICATION_BADGING_URI, notificationLister));
+
+        mHomeKeyListener = new HomeKeyWatcher(mContext);
+    }
+
+    public void setNeedsRestart() {
+        if (mNeedsRestart) {
+            // another pref change already called a restart
+            return;
+        }
+        mNeedsRestart = true;
+        mHomeKeyListener.startWatch();
+        mHomeKeyListener.setOnHomePressedListener(() -> {
+            mHomeKeyListener.stopWatch();
+            Utilities.restart(mContext);
+            // we're killing the whole process so no need to set mNeedsRestart to false again
+        });
+    }
+
+    public void checkIfRestartNeeded() {
+        // we destroyed Settings activity with the back button
+        // so we force a restart now if needed without waiting for home button press
+        if (mNeedsRestart) {
+            mHomeKeyListener.stopWatch();
+            Utilities.restart(mContext);
+        }
     }
 
     public LauncherAppState(Context context, @Nullable String iconCacheFileName) {
         mContext = context;
 
         mInvariantDeviceProfile = InvariantDeviceProfile.INSTANCE.get(context);
-        mIconProvider = new IconProvider(context, Themes.isThemedIconEnabled(context));
+        mIconProvider =  new IconProvider(context, Themes.isThemedIconEnabled(context));
         mIconCache = new IconCache(mContext, mInvariantDeviceProfile,
                 iconCacheFileName, mIconProvider);
-        mModel = new LauncherModel(context, this, mIconCache, new HiddenAppsFilter(mContext),
-                iconCacheFileName != null);
+        mWidgetCache = new DatabaseWidgetPreviewLoader(mContext, mIconCache);
+        mModel = new LauncherModel(context, this, mIconCache, AppFilter.newInstance(mContext));
         mOnTerminateCallback.add(mIconCache::close);
     }
 
@@ -158,14 +183,14 @@ public class LauncherAppState implements SafeCloseable {
         LauncherIcons.clearPool();
         mIconCache.updateIconParams(
                 mInvariantDeviceProfile.fillResIconDpi, mInvariantDeviceProfile.iconBitmapSize);
+        mWidgetCache.refresh();
         mModel.forceReload();
     }
 
     /**
      * Call from Application.onTerminate(), which is not guaranteed to ever be called.
      */
-    @Override
-    public void close() {
+    public void onTerminate() {
         mModel.destroy();
         mContext.getSystemService(LauncherApps.class).unregisterCallback(mModel);
         CustomWidgetManager.INSTANCE.get(mContext).setWidgetRefreshCallback(null);
@@ -182,6 +207,10 @@ public class LauncherAppState implements SafeCloseable {
 
     public LauncherModel getModel() {
         return mModel;
+    }
+
+    public DatabaseWidgetPreviewLoader getWidgetCache() {
+        return mWidgetCache;
     }
 
     public InvariantDeviceProfile getInvariantDeviceProfile() {

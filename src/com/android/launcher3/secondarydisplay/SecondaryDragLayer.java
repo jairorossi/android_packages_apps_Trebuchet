@@ -112,7 +112,7 @@ public class SecondaryDragLayer extends BaseDragLayer<SecondaryDisplayLauncher> 
         for (int i = 0; i < count; i++) {
             final View child = getChildAt(i);
             if (child == mAppsView) {
-                int padding = 2 * (grid.desiredWorkspaceHorizontalMarginPx
+                int padding = 2 * (grid.desiredWorkspaceLeftRightMarginPx
                         + grid.cellLayoutPaddingLeftRightPx);
 
                 int maxWidth = grid.allAppsCellWidthPx * grid.numShownAllAppsColumns + padding;

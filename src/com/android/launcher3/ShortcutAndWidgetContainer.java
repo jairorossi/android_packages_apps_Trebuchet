@@ -23,7 +23,6 @@ import static com.android.launcher3.CellLayout.WORKSPACE;
 
 import android.app.WallpaperManager;
 import android.content.Context;
-import android.graphics.Point;
 import android.graphics.Rect;
 import android.view.MotionEvent;
 import android.view.View;
@@ -49,7 +48,7 @@ public class ShortcutAndWidgetContainer extends ViewGroup implements FolderIcon.
 
     private int mCellWidth;
     private int mCellHeight;
-    private Point mBorderSpace;
+    private int mBorderSpacing;
 
     private int mCountX;
     private int mCountY;
@@ -65,12 +64,12 @@ public class ShortcutAndWidgetContainer extends ViewGroup implements FolderIcon.
     }
 
     public void setCellDimensions(int cellWidth, int cellHeight, int countX, int countY,
-            Point borderSpace) {
+            int borderSpacing) {
         mCellWidth = cellWidth;
         mCellHeight = cellHeight;
         mCountX = countX;
         mCountY = countY;
-        mBorderSpace = borderSpace;
+        mBorderSpacing = borderSpacing;
     }
 
     public View getChildAt(int cellX, int cellY) {
@@ -109,10 +108,10 @@ public class ShortcutAndWidgetContainer extends ViewGroup implements FolderIcon.
             DeviceProfile profile = mActivity.getDeviceProfile();
             ((NavigableAppWidgetHostView) child).getWidgetInset(profile, mTempRect);
             lp.setup(mCellWidth, mCellHeight, invertLayoutHorizontally(), mCountX, mCountY,
-                    profile.appWidgetScale.x, profile.appWidgetScale.y, mBorderSpace, mTempRect);
+                    profile.appWidgetScale.x, profile.appWidgetScale.y, mBorderSpacing, mTempRect);
         } else {
             lp.setup(mCellWidth, mCellHeight, invertLayoutHorizontally(), mCountX, mCountY,
-                    mBorderSpace, null);
+                    mBorderSpacing, null);
         }
     }
 
@@ -133,10 +132,10 @@ public class ShortcutAndWidgetContainer extends ViewGroup implements FolderIcon.
         if (child instanceof NavigableAppWidgetHostView) {
             ((NavigableAppWidgetHostView) child).getWidgetInset(dp, mTempRect);
             lp.setup(mCellWidth, mCellHeight, invertLayoutHorizontally(), mCountX, mCountY,
-                    dp.appWidgetScale.x, dp.appWidgetScale.y, mBorderSpace, mTempRect);
+                    dp.appWidgetScale.x, dp.appWidgetScale.y, mBorderSpacing, mTempRect);
         } else {
             lp.setup(mCellWidth, mCellHeight, invertLayoutHorizontally(), mCountX, mCountY,
-                    mBorderSpace, null);
+                    mBorderSpacing, null);
             // Center the icon/folder
             int cHeight = getCellContentHeight();
             int cellPaddingY = dp.isScalableGrid && mContainerType == WORKSPACE
@@ -144,9 +143,8 @@ public class ShortcutAndWidgetContainer extends ViewGroup implements FolderIcon.
                     : (int) Math.max(0, ((lp.height - cHeight) / 2f));
 
             // No need to add padding when cell layout border spacing is present.
-            boolean noPaddingX =
-                    (dp.cellLayoutBorderSpacePx.x > 0 && mContainerType == WORKSPACE)
-                            || (dp.folderCellLayoutBorderSpacePx.x > 0 && mContainerType == FOLDER);
+            boolean noPaddingX = (dp.cellLayoutBorderSpacingPx > 0 && mContainerType == WORKSPACE)
+                    || (dp.folderCellLayoutBorderSpacingPx > 0 && mContainerType == FOLDER);
             int cellPaddingX = noPaddingX
                     ? 0
                     : mContainerType == WORKSPACE

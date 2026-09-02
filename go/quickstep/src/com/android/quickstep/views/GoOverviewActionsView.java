@@ -35,7 +35,6 @@ import com.android.quickstep.util.RecentsOrientedState;
  */
 public class GoOverviewActionsView extends OverviewActionsView<OverlayUICallbacksGo> {
 
-    @Nullable
     private ArrowTipView mArrowTipView;
 
     public GoOverviewActionsView(Context context) {
@@ -118,7 +117,7 @@ public class GoOverviewActionsView extends OverviewActionsView<OverlayUICallback
      */
     public void updateOrientationState(RecentsOrientedState orientedState) {
         // dismiss tooltip
-        boolean canLauncherRotate = orientedState.isRecentsActivityRotationAllowed();
+        boolean canLauncherRotate = orientedState.canRecentsActivityRotate();
         if (mArrowTipView != null && !canLauncherRotate) {
             mArrowTipView.close(/* animate= */ false);
         }

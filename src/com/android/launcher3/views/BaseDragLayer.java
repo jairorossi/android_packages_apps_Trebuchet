@@ -40,7 +40,6 @@ import android.view.accessibility.AccessibilityEvent;
 import android.widget.FrameLayout;
 
 import com.android.launcher3.AbstractFloatingView;
-import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.InsettableFrameLayout;
 import com.android.launcher3.Utilities;
 import com.android.launcher3.util.MultiValueAlpha;
@@ -431,20 +430,18 @@ public abstract class BaseDragLayer<T extends Context & ActivityContext>
     }
 
     public void getViewRectRelativeToSelf(View v, Rect r) {
-        int[] loc = getViewLocationRelativeToSelf(v);
-        r.set(loc[0], loc[1], loc[0] + v.getMeasuredWidth(), loc[1] + v.getMeasuredHeight());
-    }
-
-    protected int[] getViewLocationRelativeToSelf(View v) {
         int[] loc = new int[2];
         getLocationInWindow(loc);
         int x = loc[0];
         int y = loc[1];
 
         v.getLocationInWindow(loc);
-        loc[0] -= x;
-        loc[1] -= y;
-        return loc;
+        int vX = loc[0];
+        int vY = loc[1];
+
+        int left = vX - x;
+        int top = vY - y;
+        r.set(left, top, left + v.getMeasuredWidth(), top + v.getMeasuredHeight());
     }
 
     @Override
@@ -546,14 +543,8 @@ public abstract class BaseDragLayer<T extends Context & ActivityContext>
     public WindowInsets dispatchApplyWindowInsets(WindowInsets insets) {
         if (Utilities.ATLEAST_Q) {
             Insets gestureInsets = insets.getMandatorySystemGestureInsets();
-            int gestureInsetBottom = gestureInsets.bottom;
-            DeviceProfile dp = mActivity.getDeviceProfile();
-            if (dp.isTaskbarPresent) {
-                // Ignore taskbar gesture insets to avoid interfering with TouchControllers.
-                gestureInsetBottom = Math.max(0, gestureInsetBottom - dp.taskbarSize);
-            }
             mSystemGestureRegion.set(gestureInsets.left, gestureInsets.top,
-                    gestureInsets.right, gestureInsetBottom);
+                    gestureInsets.right, gestureInsets.bottom);
         }
         return super.dispatchApplyWindowInsets(insets);
     }

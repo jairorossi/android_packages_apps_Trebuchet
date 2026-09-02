@@ -25,7 +25,6 @@ import static com.android.launcher3.config.FeatureFlags.ENABLE_QUICKSTEP_LIVE_TI
 import static com.android.launcher3.util.Executors.MAIN_EXECUTOR;
 import static com.android.quickstep.GestureState.DEFAULT_STATE;
 import static com.android.systemui.shared.system.ActivityManagerWrapper.CLOSE_SYSTEM_WINDOWS_REASON_RECENTS;
-import static com.android.systemui.shared.system.QuickStepContract.KEY_EXTRA_RECENT_TASKS;
 import static com.android.systemui.shared.system.QuickStepContract.KEY_EXTRA_SHELL_ONE_HANDED;
 import static com.android.systemui.shared.system.QuickStepContract.KEY_EXTRA_SHELL_PIP;
 import static com.android.systemui.shared.system.QuickStepContract.KEY_EXTRA_SHELL_SHELL_TRANSITIONS;
@@ -33,14 +32,15 @@ import static com.android.systemui.shared.system.QuickStepContract.KEY_EXTRA_SHE
 import static com.android.systemui.shared.system.QuickStepContract.KEY_EXTRA_SHELL_STARTING_WINDOW;
 import static com.android.systemui.shared.system.QuickStepContract.KEY_EXTRA_SMARTSPACE_TRANSITION_CONTROLLER;
 import static com.android.systemui.shared.system.QuickStepContract.KEY_EXTRA_SYSUI_PROXY;
-import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_NOTIFICATION_PANEL_EXPANDED;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_TRACING_ENABLED;
 
 import android.annotation.TargetApi;
+import android.app.ActivityManager;
 import android.app.PendingIntent;
 import android.app.RemoteAction;
 import android.app.Service;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
@@ -67,6 +67,7 @@ import androidx.annotation.BinderThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
+import androidx.annotation.WorkerThread;
 
 import com.android.launcher3.BaseDraggingActivity;
 import com.android.launcher3.R;
@@ -89,19 +90,18 @@ import com.android.quickstep.inputconsumers.AssistantInputConsumer;
 import com.android.quickstep.inputconsumers.DeviceLockedInputConsumer;
 import com.android.quickstep.inputconsumers.OneHandedModeInputConsumer;
 import com.android.quickstep.inputconsumers.OtherActivityInputConsumer;
+import com.android.quickstep.inputconsumers.OverscrollInputConsumer;
 import com.android.quickstep.inputconsumers.OverviewInputConsumer;
 import com.android.quickstep.inputconsumers.OverviewWithoutFocusInputConsumer;
-import com.android.quickstep.inputconsumers.ProgressDelegateInputConsumer;
 import com.android.quickstep.inputconsumers.ResetGestureInputConsumer;
 import com.android.quickstep.inputconsumers.ScreenPinnedInputConsumer;
 import com.android.quickstep.inputconsumers.SysUiOverlayInputConsumer;
-import com.android.quickstep.inputconsumers.TaskbarStashInputConsumer;
 import com.android.quickstep.util.ActiveGestureLog;
 import com.android.quickstep.util.AssistantUtilities;
-import com.android.quickstep.util.LauncherSplitScreenListener;
 import com.android.quickstep.util.ProtoTracer;
-import com.android.quickstep.util.ProxyScreenStatusProvider;
 import com.android.quickstep.util.SplitScreenBounds;
+import com.android.systemui.plugins.OverscrollPlugin;
+import com.android.systemui.plugins.PluginListener;
 import com.android.systemui.shared.recents.IOverviewProxy;
 import com.android.systemui.shared.recents.ISystemUiProxy;
 import com.android.systemui.shared.system.ActivityManagerWrapper;
@@ -113,7 +113,6 @@ import com.android.systemui.shared.system.smartspace.ISmartspaceTransitionContro
 import com.android.systemui.shared.tracing.ProtoTraceable;
 import com.android.wm.shell.onehanded.IOneHanded;
 import com.android.wm.shell.pip.IPip;
-import com.android.wm.shell.recents.IRecentTasks;
 import com.android.wm.shell.splitscreen.ISplitScreen;
 import com.android.wm.shell.startingsurface.IStartingWindow;
 import com.android.wm.shell.transition.IShellTransitions;
@@ -122,14 +121,13 @@ import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.function.Function;
 
 /**
  * Service connected by system-UI for handling touch interaction.
  */
 @TargetApi(Build.VERSION_CODES.R)
-public class TouchInteractionService extends Service
-        implements ProtoTraceable<LauncherTraceProto.Builder> {
+public class TouchInteractionService extends Service implements PluginListener<OverscrollPlugin>,
+        ProtoTraceable<LauncherTraceProto.Builder> {
 
     private static final String TAG = "TouchInteractionService";
 
@@ -148,8 +146,8 @@ public class TouchInteractionService extends Service
             SystemProperties.getBoolean("persist.debug.per_window_input_rotation", false);
 
     private int mBackGestureNotificationCounter = -1;
-
-    private final TISBinder mTISBinder = new TISBinder();
+    @Nullable
+    private OverscrollPlugin mOverscrollPlugin;
 
     /**
      * Local IOverviewProxy implementation with some methods for local components
@@ -172,14 +170,18 @@ public class TouchInteractionService extends Service
             ISmartspaceTransitionController smartspaceTransitionController =
                     ISmartspaceTransitionController.Stub.asInterface(
                             bundle.getBinder(KEY_EXTRA_SMARTSPACE_TRANSITION_CONTROLLER));
-            IRecentTasks recentTasks = IRecentTasks.Stub.asInterface(
-                    bundle.getBinder(KEY_EXTRA_RECENT_TASKS));
             MAIN_EXECUTOR.execute(() -> {
                 SystemUiProxy.INSTANCE.get(TouchInteractionService.this).setProxy(proxy, pip,
-                        splitscreen, onehanded, shellTransitions, startingWindow, recentTasks,
+                        splitscreen, onehanded, shellTransitions, startingWindow,
                         smartspaceTransitionController);
                 TouchInteractionService.this.initInputMonitor();
                 preloadOverview(true /* fromInit */);
+                mDeviceState.runOnUserUnlocked(() -> {
+                    final BaseActivityInterface ai =
+                            mOverviewComponentObserver.getActivityInterface();
+                    if (ai == null) return;
+                    ai.onOverviewServiceBound();
+                });
             });
             sIsInitialized = true;
         }
@@ -260,47 +262,16 @@ public class TouchInteractionService extends Service
         }
 
         @Override
-        public void onSplitScreenSecondaryBoundsChanged(Rect bounds, Rect insets) {
+        public void onSplitScreenSecondaryBoundsChanged(Rect bounds, Rect insets)  {
             WindowBounds wb = new WindowBounds(bounds, insets);
             MAIN_EXECUTOR.execute(() -> SplitScreenBounds.INSTANCE.setSecondaryWindowBounds(wb));
         }
 
-        @BinderThread
         @Override
-        public void onScreenTurnedOn() {
-            MAIN_EXECUTOR.execute(ProxyScreenStatusProvider.INSTANCE::onScreenTurnedOn);
-        }
-
-        @Override
-        public void onRotationProposal(int rotation, boolean isValid) {
-            executeForTaskbarManager(() -> mTaskbarManager.onRotationProposal(rotation, isValid));
-        }
-
-        @Override
-        public void disable(int displayId, int state1, int state2, boolean animate) {
-            executeForTaskbarManager(() -> mTaskbarManager
-                    .disableNavBarElements(displayId, state1, state2, animate));
-        }
-
-        @Override
-        public void onSystemBarAttributesChanged(int displayId, int behavior) {
-            executeForTaskbarManager(() -> mTaskbarManager
-                    .onSystemBarAttributesChanged(displayId, behavior));
-        }
-
-        @Override
-        public void onNavButtonsDarkIntensityChanged(float darkIntensity) {
-            executeForTaskbarManager(() -> mTaskbarManager
-                    .onNavButtonsDarkIntensityChanged(darkIntensity));
-        }
-
-        private void executeForTaskbarManager(final Runnable r) {
-            MAIN_EXECUTOR.execute(() -> {
-                if (mTaskbarManager == null) {
-                    return;
-                }
-                r.run();
-            });
+        public void onImeWindowStatusChanged(int displayId, IBinder token, int vis,
+                int backDisposition, boolean showImeSwitcher) {
+            MAIN_EXECUTOR.execute(() -> mTaskbarManager.updateImeStatus(
+                    displayId, vis, backDisposition, showImeSwitcher));
         }
 
         public TaskbarManager getTaskbarManager() {
@@ -309,13 +280,6 @@ public class TouchInteractionService extends Service
 
         public OverviewCommandHelper getOverviewCommandHelper() {
             return mOverviewCommandHelper;
-        }
-
-        /**
-         * Sets a proxy to bypass swipe up behavior
-         */
-        public void setSwipeUpProxy(Function<GestureState, AnimatedFloat> proxy) {
-            mSwipeUpProxyProvider = proxy != null ? proxy : (i -> null);
         }
     }
 
@@ -326,6 +290,7 @@ public class TouchInteractionService extends Service
     public static boolean isConnected() {
         return sConnected;
     }
+
 
     public static boolean isInitialized() {
         return sIsInitialized;
@@ -355,7 +320,6 @@ public class TouchInteractionService extends Service
     private DisplayManager mDisplayManager;
 
     private TaskbarManager mTaskbarManager;
-    private Function<GestureState, AnimatedFloat> mSwipeUpProxyProvider = i -> null;
 
     @Override
     public void onCreate() {
@@ -376,7 +340,6 @@ public class TouchInteractionService extends Service
         mDeviceState.addOneHandedModeChangedCallback(this::onOneHandedModeOverlayChanged);
 
         ProtoTracer.INSTANCE.get(this).add(this);
-        LauncherSplitScreenListener.INSTANCE.get(this).init();
         sConnected = true;
     }
 
@@ -438,6 +401,9 @@ public class TouchInteractionService extends Service
                 .getInt(KEY_BACK_NOTIFICATION_COUNT, MAX_BACK_NOTIFICATION_COUNT));
         resetHomeBounceSeenOnQuickstepEnabledFirstTime();
 
+        PluginManagerWrapper.INSTANCE.get(getBaseContext()).addPluginListener(this,
+                OverscrollPlugin.class, false /* allowMultiple */);
+
         mOverviewComponentObserver.setOverviewChangeListener(this::onOverviewTargetChange);
         onOverviewTargetChange(mOverviewComponentObserver.isHomeAndOverviewSame());
     }
@@ -479,12 +445,6 @@ public class TouchInteractionService extends Service
         } else {
             am.unregisterSystemAction(SYSTEM_ACTION_ID_ALL_APPS);
         }
-
-        StatefulActivity newOverviewActivity = mOverviewComponentObserver.getActivityInterface()
-                .getCreatedActivity();
-        if (newOverviewActivity != null) {
-            mTaskbarManager.setActivity(newOverviewActivity);
-        }
     }
 
     @UiThread
@@ -494,15 +454,6 @@ public class TouchInteractionService extends Service
             SystemUiProxy.INSTANCE.get(this).setLastSystemUiStateFlags(systemUiStateFlags);
             mOverviewComponentObserver.onSystemUiStateChanged();
             mTaskbarManager.onSystemUiFlagsChanged(systemUiStateFlags);
-
-            boolean wasExpanded = (lastSysUIFlags & SYSUI_STATE_NOTIFICATION_PANEL_EXPANDED) != 0;
-            boolean isExpanded =
-                    (systemUiStateFlags & SYSUI_STATE_NOTIFICATION_PANEL_EXPANDED) != 0;
-            if (wasExpanded != isExpanded && isExpanded) {
-                // End live tile when expanding the notification panel for the first time from
-                // overview.
-                mTaskAnimationManager.endLiveTile();
-            }
 
             if ((lastSysUIFlags & SYSUI_STATE_TRACING_ENABLED) !=
                     (systemUiStateFlags & SYSUI_STATE_TRACING_ENABLED)) {
@@ -534,6 +485,7 @@ public class TouchInteractionService extends Service
         if (mDeviceState.isUserUnlocked()) {
             mInputConsumer.unregisterInputConsumer();
             mOverviewComponentObserver.onDestroy();
+            PluginManagerWrapper.INSTANCE.get(getBaseContext()).removePluginListener(this);
         }
         disposeEventHandlers();
         mDeviceState.destroy();
@@ -544,7 +496,6 @@ public class TouchInteractionService extends Service
         getSystemService(AccessibilityManager.class)
                 .unregisterSystemAction(SYSTEM_ACTION_ID_ALL_APPS);
 
-        LauncherSplitScreenListener.INSTANCE.get(this).destroy();
         mTaskbarManager.destroy();
         sConnected = false;
         super.onDestroy();
@@ -553,7 +504,7 @@ public class TouchInteractionService extends Service
     @Override
     public IBinder onBind(Intent intent) {
         Log.d(TAG, "Touch service connected: user=" + getUserId());
-        return mTISBinder;
+        return new TISBinder();
     }
 
     private void onInputEvent(InputEvent ev) {
@@ -599,14 +550,26 @@ public class TouchInteractionService extends Service
 
                 ActiveGestureLog.INSTANCE.addLog("setInputConsumer: " + mConsumer.getName());
                 mUncheckedConsumer = mConsumer;
-            } else if (mDeviceState.isUserUnlocked() && mDeviceState.isFullyGesturalNavMode()
-                    && mDeviceState.canTriggerAssistantAction(event)) {
+            } else if (mDeviceState.isUserUnlocked() && mDeviceState.isFullyGesturalNavMode()) {
                 mGestureState = createGestureState(mGestureState);
-                // Do not change mConsumer as if there is an ongoing QuickSwitch gesture, we
-                // should not interrupt it. QuickSwitch assumes that interruption can only
-                // happen if the next gesture is also quick switch.
-                mUncheckedConsumer = tryCreateAssistantInputConsumer(
-                        InputConsumer.NO_OP, mGestureState, event);
+                ActivityManager.RunningTaskInfo runningTask = mGestureState.getRunningTask();
+                if (mDeviceState.canTriggerAssistantAction(event, runningTask)) {
+                    // Do not change mConsumer as if there is an ongoing QuickSwitch gesture, we
+                    // should not interrupt it. QuickSwitch assumes that interruption can only
+                    // happen if the next gesture is also quick switch.
+                    mUncheckedConsumer = new AssistantInputConsumer(
+                            this,
+                            mGestureState,
+                            InputConsumer.NO_OP, mInputMonitorCompat,
+                            mDeviceState,
+                            event);
+                } else if (mDeviceState.canTriggerOneHandedAction(event)) {
+                    // Consume gesture event for triggering one handed feature.
+                    mUncheckedConsumer = new OneHandedModeInputConsumer(this, mDeviceState,
+                        InputConsumer.NO_OP, mInputMonitorCompat);
+                } else {
+                    mUncheckedConsumer = InputConsumer.NO_OP;
+                }
             } else if (mDeviceState.canTriggerOneHandedAction(event)) {
                 // Consume gesture event for triggering one handed feature.
                 mUncheckedConsumer = new OneHandedModeInputConsumer(this, mDeviceState,
@@ -653,14 +616,6 @@ public class TouchInteractionService extends Service
         ProtoTracer.INSTANCE.get(this).scheduleFrameUpdate();
     }
 
-    private InputConsumer tryCreateAssistantInputConsumer(InputConsumer base,
-            GestureState gestureState, MotionEvent motionEvent) {
-        return mDeviceState.isGestureBlockedActivity(gestureState.getRunningTask())
-                ? base
-                : new AssistantInputConsumer(this, gestureState, base, mInputMonitorCompat,
-                        mDeviceState, motionEvent);
-    }
-
     public GestureState createGestureState(GestureState previousGestureState) {
         GestureState gestureState = new GestureState(mOverviewComponentObserver,
                 ActiveGestureLog.INSTANCE.generateAndSetLogId());
@@ -670,20 +625,14 @@ public class TouchInteractionService extends Service
             gestureState.updatePreviouslyAppearedTaskIds(
                     previousGestureState.getPreviouslyAppearedTaskIds());
         } else {
-            gestureState.updateRunningTasks(TraceHelper.allowIpcs("getRunningTask.0",
-                    () -> mAM.getRunningTasks(false /* filterOnlyVisibleRecents */)));
+            gestureState.updateRunningTask(TraceHelper.allowIpcs("getRunningTask.0",
+                    () -> mAM.getRunningTask(false /* filterOnlyVisibleRecents */)));
         }
         return gestureState;
     }
 
     private InputConsumer newConsumer(GestureState previousGestureState,
             GestureState newGestureState, MotionEvent event) {
-        AnimatedFloat progressProxy = mSwipeUpProxyProvider.apply(mGestureState);
-        if (progressProxy != null) {
-            return new ProgressDelegateInputConsumer(this, mTaskAnimationManager,
-                    mGestureState, mInputMonitorCompat, progressProxy);
-        }
-
         boolean canStartSystemGesture = mDeviceState.canStartSystemGesture();
 
         if (!mDeviceState.isUserUnlocked()) {
@@ -706,16 +655,29 @@ public class TouchInteractionService extends Service
             handleOrientationSetup(base);
         }
         if (mDeviceState.isFullyGesturalNavMode()) {
-            if (mDeviceState.canTriggerAssistantAction(event)) {
-                base = tryCreateAssistantInputConsumer(base, newGestureState, event);
+            if (mDeviceState.canTriggerAssistantAction(event, newGestureState.getRunningTask())) {
+                base = new AssistantInputConsumer(this, newGestureState, base, mInputMonitorCompat,
+                        mDeviceState, event);
             }
 
-            // If Taskbar is present, we listen for long press to unstash it.
-            BaseActivityInterface activityInterface = newGestureState.getActivityInterface();
-            StatefulActivity activity = activityInterface.getCreatedActivity();
-            if (activity != null && activity.getDeviceProfile().isTaskbarPresent) {
-                base = new TaskbarStashInputConsumer(this, base, mInputMonitorCompat,
-                        mTaskbarManager.getCurrentActivityContext());
+            if (FeatureFlags.ENABLE_QUICK_CAPTURE_GESTURE.get()) {
+                OverscrollPlugin plugin = null;
+                if (FeatureFlags.FORCE_LOCAL_OVERSCROLL_PLUGIN.get()) {
+                    plugin = OverscrollPluginFactory.INSTANCE.get(
+                            getApplicationContext()).getLocalOverscrollPlugin();
+                }
+
+                // If not local plugin was forced, use the actual overscroll plugin if available.
+                if (plugin == null && mOverscrollPlugin != null && mOverscrollPlugin.isActive()) {
+                    plugin = mOverscrollPlugin;
+                }
+
+                if (plugin != null) {
+                    // Put the overscroll gesture as higher priority than the Assistant or base
+                    // gestures
+                    base = new OverscrollInputConsumer(this, newGestureState, base,
+                        mInputMonitorCompat, plugin);
+                }
             }
 
             // If Bubbles is expanded, use the overlay input consumer, which will close Bubbles
@@ -961,9 +923,6 @@ public class TouchInteractionService extends Service
             if (mOverviewComponentObserver != null) {
                 mOverviewComponentObserver.dump(pw);
             }
-            if (mOverviewCommandHelper != null) {
-                mOverviewCommandHelper.dump(pw);
-            }
             if (mGestureState != null) {
                 mGestureState.dump(pw);
             }
@@ -980,7 +939,6 @@ public class TouchInteractionService extends Service
             pw.println("  resumed=" + resumed);
             pw.println("  mConsumer=" + mConsumer.getName());
             ActiveGestureLog.INSTANCE.dump("", pw);
-            RecentsModel.INSTANCE.get(this).dump("", pw);
             pw.println("ProtoTrace:");
             pw.println("  file=" + ProtoTracer.INSTANCE.get(this).getTraceFile());
         }
@@ -1011,6 +969,32 @@ public class TouchInteractionService extends Service
         return new FallbackSwipeHandler(this, mDeviceState, mTaskAnimationManager,
                 gestureState, touchTimeMs, mTaskAnimationManager.isRecentsAnimationRunning(),
                 mInputConsumer);
+    }
+
+    protected boolean shouldNotifyBackGesture() {
+        return mBackGestureNotificationCounter > 0 &&
+                !mDeviceState.getGestureBlockedActivityPackages().isEmpty();
+    }
+
+    @WorkerThread
+    protected void tryNotifyBackGesture() {
+        if (shouldNotifyBackGesture()) {
+            mBackGestureNotificationCounter--;
+            Utilities.getDevicePrefs(this).edit()
+                    .putInt(KEY_BACK_NOTIFICATION_COUNT, mBackGestureNotificationCounter).apply();
+            mDeviceState.getGestureBlockedActivityPackages().forEach(blockedPackage ->
+                    sendBroadcast(new Intent(NOTIFY_ACTION_BACK).setPackage(blockedPackage)));
+        }
+    }
+
+    @Override
+    public void onPluginConnected(OverscrollPlugin overscrollPlugin, Context context) {
+        mOverscrollPlugin = overscrollPlugin;
+    }
+
+    @Override
+    public void onPluginDisconnected(OverscrollPlugin overscrollPlugin) {
+        mOverscrollPlugin = null;
     }
 
     @Override

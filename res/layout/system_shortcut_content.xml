@@ -32,7 +32,6 @@
         android:minLines="1"
         android:maxLines="2"
         android:ellipsize="end"
-        android:hyphenationFrequency="full"
         android:textColor="?android:attr/textColorPrimary"
         launcher:iconDisplay="shortcut_popup"
         launcher:layoutHorizontal="true"

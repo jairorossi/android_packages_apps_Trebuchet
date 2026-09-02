@@ -41,9 +41,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.android.launcher3.BaseDraggingActivity;
 import com.android.launcher3.BubbleTextView;
 import com.android.launcher3.R;
-import com.android.launcher3.config.FeatureFlags;
 import com.android.launcher3.model.data.AppInfo;
-import com.android.launcher3.model.data.ItemInfoWithIcon;
 import com.android.launcher3.util.PackageManagerHelper;
 
 import java.util.Arrays;
@@ -97,15 +95,16 @@ public class AllAppsGridAdapter extends
         // The type of this item
         public int viewType;
 
-        // The section name of this item.  Note that there can be multiple items with different
+        /** App-only properties */
+        // The section name of this app.  Note that there can be multiple items with different
         // sectionNames in the same section
         public String sectionName = null;
         // The row that this item shows up on
         public int rowIndex;
         // The index of this app in the row
         public int rowAppIndex;
-        // The associated ItemInfoWithIcon for the item
-        public ItemInfoWithIcon itemInfo = null;
+        // The associated AppInfo for the app
+        public AppInfo appInfo = null;
         // The index of this app not including sections
         public int appIndex = -1;
         // Search section associated to result
@@ -120,7 +119,7 @@ public class AllAppsGridAdapter extends
             item.viewType = VIEW_TYPE_ICON;
             item.position = pos;
             item.sectionName = sectionName;
-            item.itemInfo = appInfo;
+            item.appInfo = appInfo;
             item.appIndex = appIndex;
             return item;
         }
@@ -274,8 +273,6 @@ public class AllAppsGridAdapter extends
     // The intent to send off to the market app, updated each time the search query changes.
     private Intent mMarketSearchIntent;
 
-    private final int mExtraHeight;
-
     public AllAppsGridAdapter(BaseDraggingActivity launcher, LayoutInflater inflater,
             AlphabeticalAppsList apps, BaseAdapterProvider[] adapterProviders) {
         Resources res = launcher.getResources();
@@ -291,7 +288,6 @@ public class AllAppsGridAdapter extends
 
         mAdapterProviders = adapterProviders;
         setAppsPerRow(mLauncher.getDeviceProfile().numShownAllAppsColumns);
-        mExtraHeight = launcher.getResources().getDimensionPixelSize(R.dimen.all_apps_height_extra);
     }
 
     public void setAppsPerRow(int appsPerRow) {
@@ -351,19 +347,14 @@ public class AllAppsGridAdapter extends
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         switch (viewType) {
             case VIEW_TYPE_ICON:
-                int layout = !FeatureFlags.ENABLE_TWOLINE_ALLAPPS.get() ? R.layout.all_apps_icon
-                        : R.layout.all_apps_icon_twoline;
                 BubbleTextView icon = (BubbleTextView) mLayoutInflater.inflate(
-                        layout, parent, false);
+                        R.layout.all_apps_icon, parent, false);
                 icon.setLongPressTimeoutFactor(1f);
                 icon.setOnFocusChangeListener(mIconFocusListener);
                 icon.setOnClickListener(mOnIconClickListener);
                 icon.setOnLongClickListener(mOnIconLongClickListener);
                 // Ensure the all apps icon height matches the workspace icons in portrait mode.
                 icon.getLayoutParams().height = mLauncher.getDeviceProfile().allAppsCellHeightPx;
-                if (FeatureFlags.ENABLE_TWOLINE_ALLAPPS.get()) {
-                    icon.getLayoutParams().height += mExtraHeight;
-                }
                 return new ViewHolder(icon);
             case VIEW_TYPE_EMPTY_SEARCH:
                 return new ViewHolder(mLayoutInflater.inflate(R.layout.all_apps_empty_search,
@@ -382,7 +373,7 @@ public class AllAppsGridAdapter extends
                 if (adapterProvider != null) {
                     return adapterProvider.onCreateViewHolder(mLayoutInflater, parent, viewType);
                 }
-                throw new RuntimeException("Unexpected view type" + viewType);
+                throw new RuntimeException("Unexpected view type");
         }
     }
 
@@ -391,13 +382,10 @@ public class AllAppsGridAdapter extends
         switch (holder.getItemViewType()) {
             case VIEW_TYPE_ICON:
                 AdapterItem adapterItem = mApps.getAdapterItems().get(position);
+                AppInfo info = adapterItem.appInfo;
                 BubbleTextView icon = (BubbleTextView) holder.itemView;
                 icon.reset();
-                if (adapterItem.itemInfo instanceof AppInfo) {
-                    icon.applyFromApplicationInfo((AppInfo) adapterItem.itemInfo);
-                } else {
-                    icon.applyFromItemInfoWithIcon(adapterItem.itemInfo);
-                }
+                icon.applyFromApplicationInfo(info);
                 break;
             case VIEW_TYPE_EMPTY_SEARCH:
                 TextView emptyViewText = (TextView) holder.itemView;

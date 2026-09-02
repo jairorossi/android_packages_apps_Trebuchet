@@ -30,6 +30,9 @@
     with some minor changed based on the derivative app.
     -->
 
+    <uses-sdk android:minSdkVersion="29"/>
+
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <uses-permission android:name="android.permission.SET_WALLPAPER_HINTS" />
@@ -41,7 +44,9 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <!-- for rotating surface by arbitrary degree -->
     <uses-permission android:name="android.permission.ROTATE_SURFACE_FLINGER" />
-    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.DEVICE_POWER" />
+
+    <uses-permission android:name="android.permission.FORCE_STOP_PACKAGES" />
 
     <!--
     Permissions required for read/write access to the workspace data. These permission name
@@ -144,7 +149,7 @@
         -->
         <activity
             android:name="com.android.launcher3.settings.SettingsActivity"
-            android:label="@string/settings_button_text"
+            android:label="@string/settings_title"
             android:theme="@style/HomeSettings.Theme"
             android:exported="true"
             android:autoRemoveFromRecents="true">
@@ -153,6 +158,38 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- Icons -->
+        <activity
+            android:name="com.android.launcher3.settings.SettingsIcons"
+            android:label="@string/icons_category_title"
+            android:theme="@style/HomeSettings.Theme"
+            android:exported="true"
+            android:autoRemoveFromRecents="true" />
+
+        <!-- App drawer -->
+        <activity
+            android:name="com.android.launcher3.settings.SettingsAppDrawer"
+            android:label="@string/app_drawer_category_title"
+            android:theme="@style/HomeSettings.Theme"
+            android:exported="true"
+            android:autoRemoveFromRecents="true" />
+
+        <!-- Homescreen -->
+        <activity
+            android:name="com.android.launcher3.settings.SettingsHomescreen"
+            android:label="@string/home_category_title"
+            android:theme="@style/HomeSettings.Theme"
+            android:exported="true"
+            android:autoRemoveFromRecents="true" />
+
+        <!-- Misc settings -->
+        <activity
+            android:name="com.android.launcher3.settings.SettingsMisc"
+            android:label="@string/misc_category_title"
+            android:theme="@style/HomeSettings.Theme"
+            android:exported="true"
+            android:autoRemoveFromRecents="true" />
 
         <provider
             android:name="com.android.launcher3.testing.TestInformationProvider"
@@ -177,11 +214,5 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-
-        <activity
-            android:name="com.android.launcher3.lineage.trust.TrustAppsActivity"
-            android:label="@string/trust_apps_manager_name"
-            android:theme="@android:style/Theme.DeviceDefault.Settings"
-            android:autoRemoveFromRecents="true" />
     </application>
 </manifest>

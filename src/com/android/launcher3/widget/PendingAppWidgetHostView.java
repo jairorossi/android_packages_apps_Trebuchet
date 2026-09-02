@@ -17,7 +17,7 @@
 package com.android.launcher3.widget;
 
 import static com.android.launcher3.graphics.PreloadIconDrawable.newPendingIcon;
-import static com.android.launcher3.widget.WidgetSections.getWidgetSections;
+import static com.android.launcher3.model.data.PackageItemInfo.CONVERSATIONS;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -89,8 +89,8 @@ public class PendingAppWidgetHostView extends LauncherAppWidgetHostView
         setOnClickListener(ItemClickHandler.INSTANCE);
 
         if (info.pendingItemInfo == null) {
-            info.pendingItemInfo = new PackageItemInfo(info.providerName.getPackageName(),
-                    info.user);
+            info.pendingItemInfo = new PackageItemInfo(info.providerName.getPackageName());
+            info.pendingItemInfo.user = info.user;
             cache.updateIconInBackground(this, info.pendingItemInfo);
         } else {
             reapplyItemInfo(info.pendingItemInfo);
@@ -338,11 +338,10 @@ public class PendingAppWidgetHostView extends LauncherAppWidgetHostView
      */
     @Nullable
     private Drawable getWidgetCategoryIcon() {
-        if (mInfo.pendingItemInfo.widgetCategory == WidgetSections.NO_CATEGORY) {
-            return null;
+        switch (mInfo.pendingItemInfo.category) {
+            case CONVERSATIONS:
+                return getContext().getDrawable(R.drawable.ic_conversations_widget_category);
         }
-        Context context = getContext();
-        return context.getDrawable(getWidgetSections(context).get(
-                mInfo.pendingItemInfo.widgetCategory).mSectionDrawable);
+        return null;
     }
 }

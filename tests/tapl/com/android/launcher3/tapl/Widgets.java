@@ -77,8 +77,7 @@ public final class Widgets extends LauncherInstrumentation.VisibleContainer {
             mLauncher.scroll(
                     widgetsContainer,
                     Direction.UP,
-                    new Rect(0, 0, mLauncher.getRightGestureMarginInContainer(widgetsContainer) + 1,
-                            0),
+                    new Rect(0, 0, mLauncher.getVisibleBounds(widgetsContainer).width(), 0),
                     FLING_STEPS, false);
             try (LauncherInstrumentation.Closable c1 = mLauncher.addContextLayer("flung back")) {
                 verifyActiveContainer();
@@ -117,9 +116,9 @@ public final class Widgets extends LauncherInstrumentation.VisibleContainer {
                     "widget_preview");
             int i = 0;
             for (; ; ) {
-                final Collection<UiObject2> tableRows = mLauncher.getChildren(widgetsContainer);
+                final Collection<UiObject2> tableRows = widgetsContainer.getChildren();
                 for (UiObject2 row : tableRows) {
-                    final Collection<UiObject2> widgetCells = mLauncher.getChildren(row);
+                    final Collection<UiObject2> widgetCells = row.getChildren();
                     for (UiObject2 widget : widgetCells) {
                         final UiObject2 label = mLauncher.findObjectInContainer(widget,
                                 labelSelector);

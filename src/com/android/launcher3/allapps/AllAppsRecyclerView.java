@@ -21,7 +21,6 @@ import static android.view.View.MeasureSpec.makeMeasureSpec;
 
 import static com.android.launcher3.logging.StatsLogManager.LauncherEvent.LAUNCHER_ALLAPPS_VERTICAL_SWIPE_BEGIN;
 import static com.android.launcher3.logging.StatsLogManager.LauncherEvent.LAUNCHER_ALLAPPS_VERTICAL_SWIPE_END;
-import static com.android.launcher3.util.LogConfig.SEARCH_LOGGING;
 import static com.android.launcher3.util.UiThreadHelper.hideKeyboardAsync;
 
 import android.content.Context;
@@ -41,7 +40,6 @@ import com.android.launcher3.BaseRecyclerView;
 import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.LauncherAppState;
 import com.android.launcher3.R;
-import com.android.launcher3.Utilities;
 import com.android.launcher3.config.FeatureFlags;
 import com.android.launcher3.logging.StatsLogManager;
 import com.android.launcher3.views.ActivityContext;
@@ -56,7 +54,6 @@ import java.util.List;
 public class AllAppsRecyclerView extends BaseRecyclerView {
     private static final String TAG = "AllAppsContainerView";
     private static final boolean DEBUG = false;
-    private static final boolean DEBUG_LATENCY = Utilities.isPropertyEnabled(SEARCH_LOGGING);
 
     private AlphabeticalAppsList mApps;
     private final int mNumAppsPerRow;
@@ -135,10 +132,6 @@ public class AllAppsRecyclerView extends BaseRecyclerView {
         }
         if (DEBUG) {
             Log.d(TAG, "onDraw at = " + System.currentTimeMillis());
-        }
-        if (DEBUG_LATENCY) {
-            Log.d(SEARCH_LOGGING,
-                    "-- Recycle view onDraw, time stamp = " + System.currentTimeMillis());
         }
         super.onDraw(c);
     }

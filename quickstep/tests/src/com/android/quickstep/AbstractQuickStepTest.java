@@ -44,7 +44,7 @@ public abstract class AbstractQuickStepTest extends AbstractLauncherUiTest {
     protected void onLauncherActivityClose(Launcher launcher) {
         RecentsView recentsView = launcher.getOverviewPanel();
         if (recentsView != null) {
-            recentsView.finishRecentsAnimation(false /* toRecents */, null);
+            recentsView.finishRecentsAnimation(true, null);
         }
     }
 
@@ -82,6 +82,6 @@ public abstract class AbstractQuickStepTest extends AbstractLauncherUiTest {
 
         RecentsView recentsView = launcher.getOverviewPanel();
         return recentsView.getSizeStrategy().isInLiveTileMode()
-                && recentsView.getRunningTaskViewId() != -1;
+                && recentsView.getRunningTaskId() != -1;
     }
 }
